@@ -1,23 +1,19 @@
 async function calcAndenes() {
-    // Obtiene el valor ingresado en el input del código QR o patente
     const input = document.getElementById('andenQRPat').value;
     const cont = document.getElementById('contAnden');
     const dest = document.getElementById('destinoBuses');
 
-    // Verifica si se ha seleccionado un destino válido
     if (!(dest.value > 0)) {
         alert('Seleccione Empresa y Destino');
         return;
     }
 
-    // Verifica si el input cumple con el formato de patente
     if (!patRegEx.test(input)) {
         console.log('No es patente, leer QR');
-        return; // Aquí se podría implementar la lectura del QR o código de barras
+        return;
     }
 
     try {
-        // Obtiene datos del movimiento de la patente
         const data = await getMovByPatente(input);
 
         if (!data) {
@@ -25,32 +21,25 @@ async function calcAndenes() {
             return;
         }
 
-        // Si el tipo de movimiento es "Anden"
         if (data['tipo'] === 'Anden') {
-            // Verifica si el vehículo ya ha salido
             if (data['fechasal'] === "0000-00-00") {
                 cont.textContent = '';
                 const date = new Date();
-
-                // Calcula la diferencia de tiempo desde la entrada
                 const fechaent = new Date(`${data['fechaent']}T${data['horaent']}`);
                 const diferencia = (date.getTime() - fechaent.getTime()) / 1000;
                 const minutos = Math.ceil((diferencia / 60) / 25);
 
-                // Crea elementos HTML para mostrar la información
                 const [elemPat, fechaPat, horaentPat, horasalPat, tiempPat, valPat, empPat] =
                     ['h1', 'h3', 'h3', 'h3', 'h3', 'h3', 'h4'].map(tag => document.createElement(tag));
 
-                // Obtiene el valor del destino
                 const ret = await getWLByPatente(data['patente']);
                 const destInfo = await getDestByID(dest.value);
 
                 let valorTot = minutos * destInfo['valor'];
                 if (ret !== null) {
-                    valorTot = 0; // Si el vehículo está en lista blanca, el valor es 0
+                    valorTot = 0;
                 }
 
-                // Asigna valores a los elementos creados
                 elemPat.textContent = `Patente: ${data['patente']}`;
                 empPat.textContent = `Empresa: ${data['empresa']}`;
                 fechaPat.textContent = `Fecha: ${data['fechaent']}`;
@@ -59,39 +48,31 @@ async function calcAndenes() {
                 tiempPat.textContent = `Tiempo de Parking: ${minutos * 25} min.`;
                 valPat.textContent = `Valor: $${valorTot}`;
 
-                // Agrega los elementos al contenedor
                 cont.append(elemPat, empPat, fechaPat, horaentPat, horasalPat, tiempPat, valPat);
 
-                // Prepara los datos para actualizar el movimiento
-                const datos = {
-                    id: data['idmov'],
-                    fecha: date.toISOString().split('T')[0],
-                    hora: `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`,
-                    valor: valorTot,
+                // Ahora asignamos el evento al botón "Imprimir boleta"
+                const impBtn = document.getElementById('impAnden');
+                impBtn.onclick = function() {
+                    impAnden(valorTot);
                 };
 
-                // Actualiza el movimiento y refresca la interfaz
-                await updateMov(datos);
-                refreshMov();
-                refreshPagos();
-                alert('Pago registrado!');
-                document.getElementById('andenQRPat').value = '';
             } else {
                 alert('Esta patente ya fue cobrada');
             }
         } else {
-            parking(); // Si no es un movimiento de "Anden", lo procesa como "Parking"
+            parking();
             document.getElementById('parkingQRPat').value = input;
         }
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error en calcAndenes:', error.message);
+        alert('Ocurrió un error al calcular los andenes. Por favor, intente nuevamente.');
     }
 }
 
-// Lista las empresas en un select
-function listarAndenesEmpresas() {
-    andGetEmpresas()
-    .then(data => {
+
+async function listarAndenesEmpresas() {
+    try {
+        const data = await andGetEmpresas();
         if (data) {
             const lista = document.getElementById('empresaBuses');
             lista.textContent = '';
@@ -106,13 +87,15 @@ function listarAndenesEmpresas() {
                 lista.appendChild(optData);
             });
         }
-    });
+    } catch (error) {
+        console.error('Error al listar empresas:', error);
+        alert('Ocurrió un error al cargar las empresas.');
+    }
 }
 
-// Lista los destinos en un select
-function listarAndenesDestinos() {
-    andGetDestinos()
-    .then(data => {
+async function listarAndenesDestinos() {
+    try {
+        const data = await andGetDestinos();
         if (data) {
             const lista = document.getElementById('destinoBuses');
             lista.textContent = '';
@@ -123,75 +106,83 @@ function listarAndenesDestinos() {
             data.forEach(itm => {
                 let optData = document.createElement('option');
                 optData.value = itm['iddest'];
-                optData.textContent = itm['ciudad'] + ' ($' + itm['valor'] + ')';
+                optData.textContent = `${itm['ciudad']} ($${itm['valor']})`;
                 lista.appendChild(optData);
             });
         }
-    });
+    } catch (error) {
+        console.error('Error al listar destinos:', error);
+        alert('Ocurrió un error al cargar los destinos.');
+    }
 }
 
-// Obtiene la lista de empresas desde la API
 async function andGetEmpresas() {
     if (getCookie('jwt')) {
-        let ret = await fetch(baseURL + "/empresas/get.php", {
+        try {
+            const response = await fetch(baseURL + "/empresas/get.php", {
                 method: 'POST',
                 mode: 'cors',
                 headers: {
                     'Authorization': `Bearer ${getCookie('jwt')}`
                 }
-            })
-            .then(reply => reply.json())
-            .catch(error => console.log(error));
-        return ret;
+            });
+            return await response.json();
+        } catch (error) {
+            console.log('Error al obtener empresas:', error);
+            alert('No se pudo obtener la lista de empresas. Intente nuevamente.');
+        }
     }
 }
 
-// Obtiene la lista de destinos desde la API
 async function andGetDestinos() {
     if (getCookie('jwt')) {
-        let ret = await fetch(apiDestinos, {
+        try {
+            const response = await fetch(apiDestinos, {
                 method: 'GET',
                 mode: 'cors',
                 headers: {
-                  'Authorization': `Bearer ${getCookie('jwt')}`
+                    'Authorization': `Bearer ${getCookie('jwt')}`
                 }
-            })
-            .then(reply => reply.json())
-            .catch(error => console.log(error));
-        return ret;
+            });
+            return await response.json();
+        } catch (error) {
+            console.log('Error al obtener destinos:', error);
+            alert('No se pudo obtener la lista de destinos. Intente nuevamente.');
+        }
     }
 }
 
-// Función para imprimir la boleta del Andén
 async function impAnden(valorTot) {
-    
-    const detalleBoleta = `53-${valorTot}-1-dsa-BANO`;  // Usamos el valor calculado en lugar de un número fijo
+    const detalleBoleta = `53-${valorTot}-1-dsa-BANO`;
 
     try {
-        const response = await fetch('generarBoleta.php', {
+        const response = await fetch('php/boletas/generarBoleta.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
+            //Aqui se muestran los valores que seran enviados a la boleta
             body: JSON.stringify({
                 codigoEmpresa: "89",
-                tipoDocumento: "39",  // Tipo de boleta afecta
+                tipoDocumento: "39",
                 total: valorTot.toString(),
                 detalleBoleta: detalleBoleta
             })
         });
 
-        const data = await response.json();
-
-        if (data.success) {
-            // Redirigir a la URL de la boleta generada
-            window.location.href = data.boletaUrl;
+        // Verificar si la respuesta fue exitosa
+        if (response.ok) {
+            // Generar el nombre de archivo
+            const blob = await response.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'boleta.pdf'; // Nombre del archivo a descargar
+            link.click(); // Forzar la descarga
         } else {
-            alert('Error al generar la boleta: ' + data.message);
+            alert('Error al generar la boleta: ' + response.statusText);
         }
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error al generar la boleta:', error);
         alert('Ocurrió un error al intentar generar la boleta.');
     }
 }
-

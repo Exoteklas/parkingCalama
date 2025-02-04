@@ -7,18 +7,12 @@
     <div class="izq">
         
         <input type="text" class="entrada" id="andenQRPat" placeholder="Ingrese patente">
-        <!-- Select para seleccionar la compañía de transporte -->
-        <!-- <select id="empresaBuses" class="entrada">
-        </select>-->
-        <!-- Select para seleccionar el destino de los buses -->
         <select id="destinoBuses" class="entrada">
         </select>
-        <!-- Botón para calcular -->
         <button class="btn" onclick="calcAndenes()">Calcular</button>
     </div>
     <!-- Columna derecha con información -->
     <div class="derecha">
-        <!-- Card con información sobre el estacionamiento -->
         <div class="card">
             <div id="contAnden">
                 <h1>Patente</h1>
@@ -28,10 +22,8 @@
                 <h3>Tiempo de Parking</h3>
                 <h3>Valor</h3>
             </div>
-            <!-- Botón para imprimir -->
-            <button onclick="impAnden()" class="btn">Imprimir boleta</button>
-            <!-- Enlace para pagar en el SII -->
-            <!-- <a href="https://eboleta.sii.cl/" target="_blank"><button class="btn">Pagar SII</button></a> -->
+            <button id="impAnden" class="btn">Imprimir boleta</button>
+
         </div>
     </div>
 </div>

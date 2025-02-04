@@ -1,20 +1,37 @@
 <?php
 
-$data = [
-  "codigoEmpresa" => "89",
-  "tipoDocumento" => "39",  // Tipo de boleta afecta
-  "total" => (string)$valorTot,  // Usar el valor calculado
-  "detalleBoleta" => "53-" . $valorTot . "-1-dsa-BANO"  
-];
+// Leer los datos JSON de la solicitud POST
+$data = json_decode(file_get_contents('php://input'), true);
 
+// Verificar si se recibió un dato válido
+if (!$data) {
+    echo 'No se recibieron datos válidos.';
+    exit; // Detener ejecución si no se reciben datos válidos
+}
 
+// Ahora, los datos que llegaron pueden ser accedidos como un array
+$codigoEmpresa = $data['codigoEmpresa'] ?? '89';
+$tipoDocumento = $data['tipoDocumento'] ?? '39';
+$total = $data['total'] ?? '0';
+$detalleBoleta = $data['detalleBoleta'] ?? '';
+
+// Mostrar los datos recibidos para ver si todo está bien
+var_dump($data); // Elimina esto en producción
+exit; // Elimina esta línea en producción, es solo para depuración
+
+// Si todo está bien, continua con la solicitud cURL
 $curl = curl_init();
 
 curl_setopt_array($curl, [
     CURLOPT_URL => 'https://qa.pullman.cl/srv-dte-web/rest/emisionDocumentoElectronico/generarDocumento',
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_CUSTOMREQUEST => 'POST',
-    CURLOPT_POSTFIELDS => json_encode($data),
+    CURLOPT_POSTFIELDS => json_encode([
+        "codigoEmpresa" => $codigoEmpresa,
+        "tipoDocumento" => $tipoDocumento,
+        "total" => $total,
+        "detalleBoleta" => $detalleBoleta
+    ]),
     CURLOPT_HTTPHEADER => [
         'Content-Type: application/json'
     ],
@@ -42,3 +59,4 @@ if (curl_errno($curl)) {
 }
 
 curl_close($curl);
+?>
